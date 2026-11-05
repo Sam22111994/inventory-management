@@ -25,6 +25,35 @@ class TestDemandEndpoints:
             assert "forecasted_demand" in forecast
             assert "trend" in forecast
             assert "period" in forecast
+            assert "unit_cost" in forecast
+            assert "lead_time_days" in forecast
+
+    def test_demand_forecast_restocking_fields_types(self, client):
+        """Test that restocking cost and lead time fields have valid types and ranges."""
+        response = client.get("/api/demand")
+        data = response.json()
+        assert len(data) > 0
+
+        for forecast in data:
+            assert isinstance(forecast["unit_cost"], (int, float))
+            assert forecast["unit_cost"] > 0, \
+                f"{forecast['item_sku']} needs a positive unit cost"
+            assert isinstance(forecast["lead_time_days"], int)
+            # Restocking demo data is specified to use lead times of 7-30 days
+            assert 7 <= forecast["lead_time_days"] <= 30, \
+                f"{forecast['item_sku']} lead time {forecast['lead_time_days']} outside 7-30 days"
+
+    def test_demand_forecast_unit_cost_matches_inventory(self, client):
+        """Test that a forecast SKU also stocked in inventory uses the same unit cost."""
+        forecasts = client.get("/api/demand").json()
+        inventory = client.get("/api/inventory").json()
+        inventory_costs = {item["sku"]: item["unit_cost"] for item in inventory}
+
+        shared = [f for f in forecasts if f["item_sku"] in inventory_costs]
+        assert len(shared) > 0, "Expected at least one forecast SKU to exist in inventory"
+
+        for forecast in shared:
+            assert abs(forecast["unit_cost"] - inventory_costs[forecast["item_sku"]]) < 0.01
 
     def test_demand_forecast_trends(self, client):
         """Test that demand forecasts have valid trend values."""

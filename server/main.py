@@ -89,6 +89,10 @@ class DemandForecast(BaseModel):
     forecasted_demand: int
     trend: str
     period: str
+    # Restocking inputs: cost per unit (USD) and supplier delivery lead time.
+    # Required so a forecast without them fails validation loudly.
+    unit_cost: float
+    lead_time_days: int
 
 class BacklogItem(BaseModel):
     id: str

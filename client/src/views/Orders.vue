@@ -5,6 +5,61 @@
       <p>{{ t('orders.description') }}</p>
     </div>
 
+    <!-- Independent of /api/orders: always rendered, outside loading/error states -->
+    <div class="card">
+      <div class="card-header submitted-header">
+        <div>
+          <h3 class="card-title">{{ t('orders.submittedOrders') }} ({{ submittedOrders.length }})</h3>
+          <p class="card-description">{{ t('orders.submittedOrdersDescription') }}</p>
+        </div>
+      </div>
+      <div v-if="submittedOrders.length === 0" class="empty-state">
+        {{ t('orders.noSubmittedOrders') }}
+      </div>
+      <div v-else class="table-container submitted-container">
+        <table class="submitted-table">
+          <thead>
+            <tr>
+              <th>{{ t('orders.table.orderNumber') }}</th>
+              <th>{{ t('orders.table.items') }}</th>
+              <th>{{ t('orders.table.totalValue') }}</th>
+              <th>{{ t('orders.table.submittedOn') }}</th>
+              <th>{{ t('orders.table.leadTime') }}</th>
+              <th>{{ t('orders.table.expectedDelivery') }}</th>
+              <th>{{ t('orders.table.status') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="order in submittedOrders" :key="order.id">
+              <td><strong>{{ order.id }}</strong></td>
+              <td>
+                <details class="items-details">
+                  <summary class="items-summary">
+                    {{ t('orders.itemsCount', { count: order.items.length }) }}
+                  </summary>
+                  <div class="items-dropdown">
+                    <div v-for="item in order.items" :key="item.sku" class="item-entry">
+                      <span class="item-name">{{ translateProductName(item.name) }}</span>
+                      <span class="item-meta">{{ t('orders.quantity') }}: {{ item.qty }} @ {{ formatCurrencyWithDecimals(item.unitCost, currentCurrency, 2) }}</span>
+                    </div>
+                  </div>
+                </details>
+              </td>
+              <td><strong>{{ formatCurrencyWithDecimals(order.totalCost, currentCurrency, 2) }}</strong></td>
+              <td>{{ formatDate(order.submittedAt) }}</td>
+              <td>{{ t('orders.leadTimeDays', { count: order.leadTimeDays }) }}</td>
+              <td>{{ formatDate(order.expectedDelivery) }}</td>
+              <td>
+                <span :class="['badge', getOrderStatusClass(order.status)]">
+                  {{ t('status.submitted') }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <div v-if="loading" class="loading">{{ t('common.loading') }}</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else>
@@ -83,6 +138,8 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { api } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
+import { useSubmittedOrders } from '../composables/useSubmittedOrders'
+import { formatCurrencyWithDecimals } from '../utils/currency'
 
 export default {
   name: 'Orders',
@@ -96,6 +153,9 @@ export default {
     const error = ref(null)
     const orders = ref([])
 
+    // Restocking orders placed this session; independent of FilterBar and /api/orders
+    const { submittedOrders } = useSubmittedOrders()
+
     // Use shared filters
     const {
       selectedPeriod,
@@ -108,6 +168,8 @@ export default {
     const loadOrders = async () => {
       try {
         loading.value = true
+        // Clear a previous failure so a later successful reload shows data again
+        error.value = null
         const filters = getCurrentFilters()
         const fetchedOrders = await api.getOrders(filters)
 
@@ -138,7 +200,8 @@ export default {
         'Delivered': 'success',
         'Shipped': 'info',
         'Processing': 'warning',
-        'Backordered': 'danger'
+        'Backordered': 'danger',
+        'Submitted': 'info'
       }
       return statusMap[status] || 'info'
     }
@@ -164,6 +227,9 @@ export default {
       getOrderStatusClass,
       formatDate,
       currencySymbol,
+      currentCurrency,
+      submittedOrders,
+      formatCurrencyWithDecimals,
       translateProductName,
       translateCustomerName
     }
@@ -176,6 +242,26 @@ export default {
 .orders-table {
   table-layout: fixed;
   width: 100%;
+}
+
+.card-description {
+  margin-top: 0.25rem;
+  font-size: 0.813rem;
+  color: #64748b;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: #64748b;
+  font-size: 0.938rem;
+}
+
+/* The absolutely positioned items dropdown would be clipped (and add an inner
+   scrollbar) inside the global .table-container overflow-x:auto, since a few rows
+   are shorter than the dropdown. Let it overflow this table's container instead. */
+.submitted-container {
+  overflow: visible;
 }
 
 /* Column widths */

@@ -25,6 +25,9 @@
           <router-link to="/reports" :class="{ active: $route.path === '/reports' }">
             Reports
           </router-link>
+          <router-link to="/restocking" :class="{ active: $route.path === '/restocking' }">
+            {{ t('nav.restocking') }}
+          </router-link>
         </nav>
         <LanguageSwitcher />
         <ProfileMenu
@@ -249,6 +252,44 @@ body {
 .nav-tabs a:hover {
   color: #0f172a;
   background: #f1f5f9;
+}
+
+.nav-tabs a {
+  white-space: nowrap;
+}
+
+/* Seven tabs no longer fit alongside the full logo on narrower screens */
+@media (max-width: 1360px) {
+  .nav-container {
+    padding: 0 1rem;
+  }
+
+  .nav-tabs a {
+    padding: 0.625rem 0.75rem;
+  }
+
+  .subtitle {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .nav-tabs a {
+    padding: 0.5rem 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .nav-container > .nav-tabs {
+    margin-right: 0.5rem;
+  }
+
+  .nav-container > .language-switcher {
+    margin-right: 0.5rem;
+  }
+
+  .logo h1 {
+    font-size: 1.125rem;
+  }
 }
 
 .nav-tabs a.active {
